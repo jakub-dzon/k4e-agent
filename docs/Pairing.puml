@@ -1,0 +1,19 @@
+@startuml
+'https://plantuml.com/sequence-diagram
+
+title Pairing
+
+autonumber
+actor User
+
+User -> Device: Boot k4e device ISO
+Device --> User: Up
+Device -> Agent: Start agent
+Agent --> Device: Up
+Agent -> Operator: Send pairing request
+Operator -> Operator: Create Device CR
+Operator -> Agent: Send pairing confirmation
+Agent -> Agent: Start processing requests
+Agent -> Clock: Start heartbeats
+
+@enduml

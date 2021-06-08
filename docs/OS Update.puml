@@ -1,0 +1,15 @@
+@startuml
+'https://plantuml.com/sequence-diagram
+
+title OS update
+autonumber
+actor User
+
+User -> "Device CR": Update with new target version
+Operator -> "Device CR": Process
+Operator -> "HTTP server": Upload new OS version
+Device -> Device: Automatic OS update and restart
+Agent -> Operator: Heartbeat with new OS version
+Operator -> "Device CR": Update status with new installed version
+
+@enduml

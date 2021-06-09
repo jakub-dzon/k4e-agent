@@ -1,0 +1,60 @@
+apiVersion: k4e.io/v1alpha1
+kind: EdgeDevice
+metadata:
+  namespace: far-far-away
+  name: edge-device-1
+spec:
+  osImageUuid: 149b153b-82a8-4adb-8f36-27481ac2d0f2
+  heartbeat:
+    hardwareProfile:
+      include: True
+      mode: delta # full or delta
+    periodSeconds: 30
+status:
+  osImageUuid: 149b153b-82a8-4adb-8f36-27481ac2d0f2
+  phase: up # up, degraded or restarting
+  lastSeenTime: "2021-05-25T16:18:33Z"
+  conditions:
+    - type: Running
+      status: True
+      reason: started
+      message: Device booted successfully
+      lastTransitionTime:  "2021-05-25T12:18:17Z"
+    - type: Starting
+      status: False
+      reason: started
+      message: Device booted successfully
+      lastTransitionTime:  "2021-05-25T12:18:17Z"
+    - type: Updating
+      status: True
+      reason: newOSVersionDetected
+      message: New OS version was detected and update has started
+      lastTransitionTime:  "2021-05-25T15:18:17Z"
+  hardware:
+    updateTime:  "2021-05-25T12:18:17Z"
+    hostname: myDevice
+    cpu:
+      architecture: ARM
+      count: 4
+      frequencyMHz: 1400
+    memory:
+      physicalBytes: 2048
+      usableBytes: 2048
+    disks:
+      - sizeBytesMiB: 10240
+        name: sdb
+        driveType: SSD
+        bootable: True
+        byID: wwn-0x2222222222222222222222
+        byPath: "/dev/disk/by-path/pci-0000:00:06.0"
+        vendor: 0x1af4
+        model: unknown
+    interfaces:
+      - name: eth0
+        macAddress: 84:c5:a6:e6:87:9d
+        ipv4Addresses:
+          - 10.123.123.1
+        ipv6Addresses:
+          - fe80::a338:b80e:8866:6b22
+        vendor: 0x8086
+        product: 0x158b

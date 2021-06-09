@@ -1,0 +1,31 @@
+@startuml
+'https://plantuml.com/deployment-diagram
+
+frame Kubernetes {
+    queue "MQTT broker" as MQTT
+    control "k4e operator" as operator
+    node "HTTP Server" as http
+    file "EdgeDeployment CR" as deployment
+    file "Device CR" as deviceCR
+}
+
+node Device {
+    component Agent
+    control Podman
+    collections Workloads
+}
+deviceCR o-- deployment
+
+operator -r-> MQTT: send/poll
+operator --> http: upload new OS image
+operator -[dashed]-> deployment: process
+operator -[dashed]-> deviceCR: process
+
+Agent -l-> MQTT: send/poll
+Agent --> Podman : CRUD/monitor workloads
+
+Podman -[dashed]-> Workloads: supervise workloads
+Device --> http : get OS image
+
+
+@enduml

@@ -6,17 +6,17 @@ autonumber
 
 actor User
 
-User -> "EdgeDeployment CR": Create
-Operator -> "EdgeDeployment CR": Process
-Operator -> "Device CR": add workload reference to status
+User -> "EdgePod CR": Create
+Operator -> "EdgePod CR": Process
+Operator -> "EdgeDevice CR": add workload reference to status
 Operator -> Agent: Send pod yaml
-Operator -> "EdgeDeployment CR": Set status to deploying
+Operator -> "EdgePod CR": Set status to deploying
 Agent -> Podman: run pod
 Agent -> firewalld: open ports
 
 loop
 Agent -> Operator: Heartbeat with workload information
-Operator -> "EdgeDeployment CR": Update status
+Operator -> "EdgePod CR": Update status
 end
 
 

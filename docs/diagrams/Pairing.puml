@@ -11,7 +11,7 @@ Device --> User: Up
 Device -> Agent: Start agent
 Agent --> Device: Up
 Agent -> Operator: Send pairing request
-Operator -> Operator: Create Device CR
+Operator -> Operator: Create EdgeDevice CR
 Operator -> Agent: Send pairing confirmation
 Agent -> Agent: Start processing requests
 Agent -> Clock: Start heartbeats

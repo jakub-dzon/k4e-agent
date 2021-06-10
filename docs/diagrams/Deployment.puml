@@ -5,8 +5,8 @@ frame Kubernetes {
     queue "MQTT broker" as MQTT
     control "k4e operator" as operator
     node "HTTP Server" as http
-    file "EdgeDeployment CR" as deployment
-    file "Device CR" as deviceCR
+    file "EdgePod CR" as pod
+    file "EdgeDevice CR" as deviceCR
 }
 
 node Device {
@@ -14,11 +14,11 @@ node Device {
     control Podman
     collections Workloads
 }
-deviceCR o-- deployment
+deviceCR o-- pod
 
 operator -r-> MQTT: send/poll
 operator --> http: upload new OS image
-operator -[dashed]-> deployment: process
+operator -[dashed]-> pod: process
 operator -[dashed]-> deviceCR: process
 
 Agent -l-> MQTT: send/poll

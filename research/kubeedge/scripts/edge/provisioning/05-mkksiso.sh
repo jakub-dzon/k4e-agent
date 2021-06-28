@@ -22,16 +22,26 @@ podman build \
   ${TEMP_DIR}
 
 #
-# Add the kickstart and command line options to the boot ISO
+# Add the kickstart and command line options to the primary's boot ISO
 #
 podman run \
   --rm \
   --privileged \
   -v ${TEMP_DIR}:/data:Z \
   mkksiso:latest \
-  /usr/sbin/mkksiso -c "inst.text console=ttyS0" \
+  /usr/sbin/mkksiso -c "inst.text console=ttyS0 vip_state=MASTER vip_priority=255" \
   edge.ks ${ISO_NAME} primarybootwithks.iso
 
+#
+# Add the kickstart and command line options to the backup's boot ISO
+#
+podman run \
+  --rm \
+  --privileged \
+  -v ${TEMP_DIR}:/data:Z \
+  mkksiso:latest \
+  /usr/sbin/mkksiso -c "inst.text console=ttyS0 vip_state=BACKUP vip_priority=254" \
+  edge.ks ${ISO_NAME} backupbootwithks.iso
 
 #
 # Copy ISOs to home directory and make sure all files owned by $SUDO_USER

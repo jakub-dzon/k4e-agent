@@ -23,11 +23,24 @@ function usage {
 #
 [[ $# -eq 1 ]] || usage
 
+case "$1" in
+  primary)
+    PRIORITY=$1
+    ;;
+
+  backup)
+    PRIORITY=$1
+    ;;
+
+  *)
+    usage
+    ;;
+esac
 
 #
 # make boot ISO accessible
 #
-cp /home/$SUDO_USER/primarybootwithks.iso /tmp
+cp /home/$SUDO_USER/${PRIORITY}bootwithks.iso /tmp
 
 #
 # Determine unique edge device name
@@ -43,7 +56,7 @@ virt-install \
     --memory $MEM_SIZE \
     --vcpus $NUM_CPUS \
     --network bridge=bridge0 \
-    --cdrom /tmp/primarybootwithks.iso \
+    --cdrom /tmp/${PRIORITY}bootwithks.iso \
     --os-variant=$OS_VARIANT \
     --disk size=$HDD_SIZE \
     --graphics vnc,keymap=en-us \

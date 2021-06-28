@@ -1,0 +1,258 @@
+##
+## Initial ostree install
+##
+
+# set locale defaults for the Install
+lang en_US.UTF-8
+keyboard us
+timezone UTC
+
+# initialize any invalid partition tables and destroy all of their contents
+zerombr
+
+# erase all disk partitions and create a default label
+clearpart --all --initlabel
+
+# automatically create xfs partitions with no LVM and no /home partition
+autopart --type=plain --fstype=xfs --nohome
+
+# poweroff after installation is successfully completed
+poweroff
+
+# installation will run in text mode
+text
+
+# activate network devices and configure with DHCP
+network --bootproto=dhcp --noipv6
+
+# Kickstart requires that we create default user 'core' with sudo
+# privileges using password 'edge'
+user --name=core --groups=wheel --password=edge --homedir=/var/home/core
+
+# set up the OSTree-based install with disabled GPG key verification, the base
+# URL to pull the installation content, 'rhel' as the management root in the
+# repo, and 'rhel/8/x86_64/edge' as the branch for the installation
+ostreesetup --nogpg --url=http://${HOSTIP}:8000/repo/ --osname=rhel --remote=edge --ref=rhel/8/x86_64/edge
+
+%post
+
+##
+## Set the rpm-ostree update policy to automatically download and
+## stage updates to be applied at the next reboot
+##
+
+# stage updates as they become available. This is highly recommended
+echo AutomaticUpdatePolicy=stage >> /etc/rpm-ostreed.conf
+
+##
+## Create service and timer to periodically check if there's staged
+## updates and then reboot to apply them.
+##
+
+# This systemd service runs one time and exits after each timer
+# event. If there are staged updates to the operating system, the
+# system is rebooted to apply them.
+cat > /etc/systemd/system/applyupdate.service << 'EOF'
+[Unit]
+Description=Apply Update Check
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'if [[ $(rpm-ostree status -v | grep "Staged: yes") ]]; then systemctl --message="Applying OTA update" reboot; else logger "Running latest available update"; fi'
+EOF
+
+# This systemd timer activates every minute to check for staged
+# updates to the operating system
+cat > /etc/systemd/system/applyupdate.timer <<EOF
+[Unit]
+Description=Daily Update Reboot Check.
+
+[Timer]
+# activate every minute
+OnBootSec=30
+OnUnitActiveSec=30
+
+#weekly example for Sunday at midnight
+#OnCalendar=Sun *-*-* 00:00:00
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# The rpm-ostreed-automatic.timer and accompanying service will
+# check for operating system updates and stage them. The applyupdate.timer
+# will reboot the system to force an upgrade.
+systemctl enable rpm-ostreed-automatic.timer applyupdate.timer
+%end
+
+%post
+
+## 
+## add our insecure registry to the list of registries we'll search for images
+##
+
+cat > /etc/containers/registries.conf <<EOF
+[registries.search]
+registries = ['registry.access.redhat.com', 'registry.redhat.io', 'docker.io']
+[registries.insecure]
+registries = ['${HOSTIP}:5000']
+[registries.block]
+registries = []
+EOF
+%end
+
+%post
+# fix ownership of user local files and SELinux contexts
+chown -R core: /var/home/core
+restorecon -vFr /var/home/core
+
+# enable linger so user services run whether user logged in or not
+cat << EOF > /etc/systemd/system/enable-linger.service
+[Service]
+Type=oneshot
+ExecStart=loginctl enable-linger core
+
+[Install]
+WantedBy=multi-user.target default.target
+EOF
+
+systemctl enable enable-linger.service
+%end
+
+%post
+## Create install script
+cat > /home/core/install.sh << EOF
+#!/bin/bash
+
+if [ ! -e keadm/keadm ]; then
+  wget https://github.com/kubeedge/kubeedge/releases/download/v1.7.1/keadm-v1.7.1-linux-amd64.tar.gz -O keadm.tgz
+
+  tar -zxf keadm.tgz --one-top-level=keadm --strip-components 1
+fi
+
+sudo keadm/keadm join --token b1b27ba584aad29896972c5603669d9955c02ec270d1e11cb0bec1b9ec06b0fe.eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2MjQ4OTc1OTZ9.VdCRWw0p6TNw4f4Z76eD2cLoyY0NdjvxtFSY70BV8-Y --cgroupdriver systemd --cloudcore-ipport=${HOSTIP}:10000 --runtimetype=remote
+
+sudo cp edgecore.yaml /etc/kubeedge/config/edgecore.yaml
+EOF
+
+chown core /home/core/install.sh
+chmod +x /home/core/install.sh
+
+
+cat > /home/core/edgecore.yaml << EOF
+apiVersion: edgecore.config.kubeedge.io/v1alpha1
+database:
+  aliasName: default
+  dataSource: /var/lib/kubeedge/edgecore.db
+  driverName: sqlite3
+kind: EdgeCore
+modules:
+  dbTest:
+    enable: false
+  deviceTwin:
+    enable: true
+  edgeHub:
+    enable: true
+    heartbeat: 15
+    httpServer: https://${HOSTIP}:10002
+    projectID: e632aba927ea4ac2b575ec1603d56f10
+    quic:
+      enable: false
+      handshakeTimeout: 30
+      readDeadline: 15
+      server: 10.46.41.190:10001
+      writeDeadline: 15
+    rotateCertificates: true
+    tlsCaFile: /etc/kubeedge/ca/rootCA.crt
+    tlsCertFile: /etc/kubeedge/certs/server.crt
+    tlsPrivateKeyFile: /etc/kubeedge/certs/server.key
+    token: 6fea4d719b9e5cac15cbe0c9d7c98a1de406c75b61496098b659c7585ebc67c2.eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2MjQ5ODQ2NDN9.t6brBoZes8ukzZYizJZ2PhpCxrAYuMgiBtNnjoK4Obo 
+    websocket:
+      enable: true
+      handshakeTimeout: 30
+      readDeadline: 15
+      server: ${HOSTIP}:10000
+      writeDeadline: 15
+  edgeMesh:
+    enable: false
+    lbStrategy: RoundRobin
+    listenInterface: docker0
+    listenPort: 40001
+    subNet: 9.251.0.0/16
+  edgeStream:
+    enable: false
+    handshakeTimeout: 30
+    readDeadline: 15
+    server: ${HOSTIP}:10004
+    tlsTunnelCAFile: /etc/kubeedge/ca/rootCA.crt
+    tlsTunnelCertFile: /etc/kubeedge/certs/server.crt
+    tlsTunnelPrivateKeyFile: /etc/kubeedge/certs/server.key
+    writeDeadline: 15
+  edged:
+    cgroupDriver: systemd
+    cgroupRoot: ""
+    cgroupsPerQOS: true
+    clusterDNS: ""
+    clusterDomain: ""
+    cniBinDir: /opt/cni/bin
+    cniCacheDirs: /var/lib/cni/cache
+    cniConfDir: /etc/cni/net.d
+    concurrentConsumers: 5
+    devicePluginEnabled: false
+    dockerAddress: unix:///var/run/docker.sock
+    edgedMemoryCapacity: 7852396000
+    enable: true
+    enableMetrics: true
+    gpuPluginEnabled: false
+    hostnameOverride: vm-41-190.lab.eng.tlv2.redhat.com
+    imageGCHighThreshold: 80
+    imageGCLowThreshold: 40
+    imagePullProgressDeadline: 60
+    maximumDeadContainersPerPod: 1
+    networkPluginMTU: 1500
+    nodeIP: 10.46.41.190
+    nodeStatusUpdateFrequency: 10
+    podSandboxImage: k8s.gcr.io/pause:3.2
+    registerNode: true
+    registerNodeNamespace: default
+    remoteImageEndpoint: unix:///var/run/crio/crio.sock
+    remoteRuntimeEndpoint: unix:///var/run/crio/crio.sock
+    runtimeRequestTimeout: 2
+    runtimeType: remote
+    volumeStatsAggPeriod: 60000000000
+  eventBus:
+    enable: true
+    eventBusTLS:
+      enable: false
+      tlsMqttCAFile: /etc/kubeedge/ca/rootCA.crt
+      tlsMqttCertFile: /etc/kubeedge/certs/server.crt
+      tlsMqttPrivateKeyFile: /etc/kubeedge/certs/server.key
+    mqttMode: 2
+    mqttQOS: 0
+    mqttRetain: false
+    mqttServerExternal: tcp://127.0.0.1:1883
+    mqttServerInternal: tcp://127.0.0.1:1884
+    mqttSessionQueueSize: 100
+  metaManager:
+    contextSendGroup: hub
+    contextSendModule: websocket
+    enable: true
+    metaServer:
+      debug: false
+      enable: false
+    podStatusSyncInterval: 60
+    remoteQueryTimeout: 60
+  serviceBus:
+    enable: false
+EOF
+
+%end
+
+
+%post
+# Enable CRI-O
+
+systemctl enable --now crio
+
+%end
+

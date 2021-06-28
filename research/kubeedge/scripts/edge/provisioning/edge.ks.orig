@@ -360,6 +360,7 @@ EOF
 chown core /home/core/install.sh
 chmod +x /home/core/install.sh
 
+IP=$(ip route get 8.8.8.8 |awk '{print $7; exit}')
 
 cat > /home/core/edgecore.yaml << EOF
 apiVersion: edgecore.config.kubeedge.io/v1alpha1
@@ -426,13 +427,13 @@ modules:
     enable: true
     enableMetrics: true
     gpuPluginEnabled: false
-    hostnameOverride: vm-41-190.lab.eng.tlv2.redhat.com
+    hostnameOverride: $(hostname)
     imageGCHighThreshold: 80
     imageGCLowThreshold: 40
     imagePullProgressDeadline: 60
     maximumDeadContainersPerPod: 1
     networkPluginMTU: 1500
-    nodeIP: ${VIP_IP}
+    nodeIP: ${IP}
     nodeStatusUpdateFrequency: 10
     podSandboxImage: k8s.gcr.io/pause:3.2
     registerNode: true

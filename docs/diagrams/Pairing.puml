@@ -7,11 +7,15 @@ autonumber
 actor User
 
 User -> Device: Boot k4e device ISO
-Device --> User: Up
+Device -> User: Up
 Device -> Agent: Start agent
-Agent --> Device: Up
+Agent -> Device: Up
 Agent -> Operator: Send pairing request
-Operator -> Operator: Create EdgeDevice CR
+Operator -> "EdgeDeviceRequest CR": Create
+User -> "EdgeDeviceRequest CR": Approve and assign namespace
+Operator -> "EdgeDevice CR": Create
+Operator -> OBC: Create Object Bucket Claim for the device data
+Operator -> "EdgeDevice CR": Update status with OBC info
 Operator -> Agent: Send pairing confirmation
 Agent -> Agent: Start processing requests
 Agent -> Clock: Start heartbeats

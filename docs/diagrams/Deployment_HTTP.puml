@@ -7,7 +7,7 @@ frame Kubernetes {
       interface "http  API" as operatorAPI
 
     }
-    file "EdgePod CR" as pod
+    file "EdgeDeployment CR" as deployment
     file "EdgeDevice CR" as deviceCR
 }
 
@@ -16,9 +16,9 @@ node Device {
     control Podman
     collections Workloads
 }
-deviceCR o-- pod
+deviceCR o-- deployment
 
-Operator -[dashed]-> pod: process
+Operator -[dashed]-> deployment: process
 Operator -[dashed]-> deviceCR: process
 
 Agent --> operatorAPI: get desired state
